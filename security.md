@@ -117,3 +117,19 @@ When DNSSEC is enabled at the box's domain name's registrar, [DANE TLSA](https:/
 ### Filters
 
 Incoming mail is run through several filters. Email is bounced if the sender's IP address is listed in the [Spamhaus Zen blacklist](http://www.spamhaus.org/zen/) or if the sender's domain is listed in the [Spamhaus Domain Block List](http://www.spamhaus.org/dbl/). Greylisting (with [postgrey](http://postgrey.schweikert.ch/)) is also used to cut down on spam. ([source](setup/mail-postfix.sh))
+
+Mail Storage (At-Rest Encryption)
+---------------------------------
+
+By default mail is stored unencrypted on disk in each user's Maildir, readable by anyone with root or `mail`-user access to the box.
+
+Optionally, an administrator can upload a per-account PGP public key in the control panel (Users → "encryption"). When a key is present, incoming mail for that account is encrypted to the key at delivery time and only the ciphertext is written to disk. This happens in a Dovecot Sieve `filter` action (`sieve_extprograms`) that runs *after* SpamAssassin and the spam-sorting Sieve, so spam filtering still works on the plaintext. ([source](conf/pgp-encrypt.py), [source](setup/mail-dovecot.sh))
+
+This protects the *contents* of stored mail against an adversary who later gains read access to the disk (e.g. a stolen backup or disk image), provided the corresponding private key is not on the box. Important limitations:
+
+* Only the message **body** is encrypted, as a [PGP/MIME](https://datatracker.ietf.org/doc/html/rfc3156) (RFC 3156) part. Routing headers — including **Subject**, From, To and Date — remain in clear text because IMAP needs them, so message metadata is not protected.
+* It protects mail **at rest after delivery**, not in transit; on-the-wire protection is covered by the sections above. Mail sitting in queues or scanned in memory before the filter runs is not covered.
+* Only **inbound** mail is encrypted. Messages the user sends, saves to Drafts, or that were already stored before a key was uploaded are not changed.
+* If an account has no key, or encryption fails for any reason, the message is stored **unencrypted** — the filter never discards or defers mail.
+* Webmail (Roundcube) and any client without the private key will display ciphertext. Decryption must happen in a PGP-capable client (e.g. Thunderbird, or Roundcube's Enigma plugin) holding the private key. To preserve the security benefit, the private key should **not** be stored on the box.
+* Only public keys are stored on the box, under `$STORAGE_ROOT/mail/pgp_keys`. The control panel refuses to store a private key.

@@ -26,7 +26,7 @@ source /etc/mailinabox.conf # load global vars
 echo "Installing Dovecot (IMAP server)..."
 apt_install \
 	dovecot-core dovecot-imapd dovecot-pop3d dovecot-lmtpd dovecot-sqlite sqlite3 \
-	dovecot-sieve dovecot-managesieved
+	dovecot-sieve dovecot-managesieved gnupg
 
 # The `dovecot-imapd`, `dovecot-pop3d`, and `dovecot-lmtpd` packages automatically
 # enable IMAP, POP and LMTP protocols.
@@ -211,6 +211,14 @@ plugin {
   sieve = $STORAGE_ROOT/mail/sieve/%d/%n.sieve
   sieve_dir = $STORAGE_ROOT/mail/sieve/%d/%n
   sieve_redirect_envelope_from = recipient
+
+  # Enable the sieve_extprograms plugin and its 'filter' action so our global
+  # encrypt-at-rest sieve (in global_before) can pipe each message through the
+  # pgp-encrypt program before it is stored. See setup/mail-dovecot.sh.
+  sieve_plugins = sieve_extprograms
+  sieve_extensions = +vnd.dovecot.filter
+  sieve_filter_bin_dir = /usr/lib/dovecot/sieve-filter
+  sieve_filter_exec_timeout = 30s
 }
 EOF
 
@@ -219,6 +227,26 @@ EOF
 # permission later.
 cp conf/sieve-spam.txt /etc/dovecot/sieve-spam.sieve
 sievec /etc/dovecot/sieve-spam.sieve
+
+# ### Encrypt mail at rest with PGP
+#
+# Install the delivery-time filter program that encrypts incoming mail to the
+# recipient account's PGP public key (if one has been uploaded in the control
+# panel). It runs after SpamAssassin, via the sieve_extprograms 'filter' action
+# configured above. The keystore holds one ASCII-armored public key per account.
+mkdir -p /usr/lib/dovecot/sieve-filter
+sed "s|###STORAGE_ROOT###|$STORAGE_ROOT|g" conf/pgp-encrypt.py > /usr/lib/dovecot/sieve-filter/pgp-encrypt
+chmod 755 /usr/lib/dovecot/sieve-filter/pgp-encrypt
+
+# Install the global sieve that invokes the filter for every delivery, and
+# compile it (Dovecot can't compile global scripts itself at delivery time).
+mkdir -p "$STORAGE_ROOT/mail/sieve/global_before"
+cp conf/sieve-encrypt.txt "$STORAGE_ROOT/mail/sieve/global_before/encrypt-at-rest.sieve"
+sievec "$STORAGE_ROOT/mail/sieve/global_before/encrypt-at-rest.sieve"
+
+# Create the per-account public key store, owned by the mail user.
+mkdir -p "$STORAGE_ROOT/mail/pgp_keys"
+chown -R mail:mail "$STORAGE_ROOT/mail/pgp_keys"
 
 # PERMISSIONS
 

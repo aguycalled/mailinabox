@@ -22,6 +22,7 @@ from mailconfig import get_mail_users, get_mail_users_ex, get_admins, add_mail_u
 from mailconfig import get_mail_user_privileges, add_remove_mail_user_privilege
 from mailconfig import get_mail_aliases, get_mail_aliases_ex, get_mail_domains, add_mail_alias, remove_mail_alias
 from mailconfig import get_mail_quota, set_mail_quota
+from mailconfig import get_user_pgp_key, set_user_pgp_key, remove_user_pgp_key
 from mfa import get_public_mfa_state, provision_totp, validate_totp_secret, enable_mfa, disable_mfa
 import contextlib
 
@@ -247,6 +248,24 @@ def mail_user_privs_add():
 @authorized_personnel_only
 def mail_user_privs_remove():
 	return add_remove_mail_user_privilege(request.form.get('email', ''), request.form.get('privilege', ''), "remove", env)
+
+
+@app.route('/mail/users/pgp', methods=['GET'])
+@authorized_personnel_only
+def mail_user_pgp_get():
+	result = get_user_pgp_key(request.args.get('email', ''), env)
+	if isinstance(result, tuple): return result # error
+	return json_response(result)
+
+@app.route('/mail/users/pgp', methods=['POST'])
+@authorized_personnel_only
+def mail_user_pgp_set():
+	return set_user_pgp_key(request.form.get('email', ''), request.form.get('key', ''), env)
+
+@app.route('/mail/users/pgp/remove', methods=['POST'])
+@authorized_personnel_only
+def mail_user_pgp_remove():
+	return remove_user_pgp_key(request.form.get('email', ''), env)
 
 
 @app.route('/mail/aliases')

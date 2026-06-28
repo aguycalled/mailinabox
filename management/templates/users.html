@@ -84,6 +84,13 @@
           |
         </span>
 
+        <span class="if_active">
+          <a href="#" onclick="users_set_pgp(this); return false;" class='setpgp' title="At-rest PGP encryption">
+            encryption
+          </a>
+          |
+        </span>
+
         <span class='add-privs'>
         </span>
 
@@ -362,6 +369,71 @@ function mod_priv(elem, add_remove) {
         function(r) {
           show_users();
         });
+    });
+}
+
+function users_set_pgp(elem) {
+  var email = $(elem).parents('tr').attr('data-email');
+
+  api(
+    "/mail/users/pgp",
+    "GET",
+    { email: email },
+    function(r) {
+      var status;
+      if (r.has_key) {
+        var uids = (r.uids && r.uids.length) ? r.uids.join(", ") : "(unknown)";
+        var fpr = r.fingerprint || "(unknown)";
+        status = $("<p class='text-success'>Mail to this account is <b>encrypted at rest</b>.</p>"
+          + "<p style='font-size: 90%'>Key: <span class='uids'></span><br>"
+          + "Fingerprint: <code class='fpr'></code></p>");
+        status.find('.uids').text(uids);
+        status.find('.fpr').text(fpr);
+      } else {
+        status = $("<p>Mail to this account is currently stored <b>unencrypted</b>.</p>");
+      }
+
+      var body = $("<div></div>");
+      body.append(status);
+      body.append($("<p style='margin-top:1em'><label for='pgp_key_input' style='display:block;font-weight:normal'>Paste an ASCII-armored PGP <b>public</b> key to encrypt new mail at rest (leave blank to keep the current key):</label>"
+        + "<textarea id='pgp_key_input' rows='8' style='width:100%;font-family:monospace;font-size:85%' placeholder='-----BEGIN PGP PUBLIC KEY BLOCK-----'></textarea></p>"));
+      body.append($("<p style='font-size:90%;color:#888'>Only the message body is encrypted; headers such as Subject, From and To stay readable so IMAP works. Webmail will show ciphertext &mdash; decrypt in a PGP-capable client with your private key. Existing mail is not changed."
+        + (r.has_key ? " <a href='#' id='pgp_remove_link'>Remove the key and stop encrypting</a>." : "") + "</p>"));
+
+      show_modal_confirm(
+        "At-rest Encryption — " + email,
+        body,
+        "Save Key",
+        function() {
+          var key = $('#pgp_key_input').val();
+          if (!key || key.trim() == "") return; // nothing to do
+          api(
+            "/mail/users/pgp",
+            "POST",
+            { email: email, key: key },
+            function(r) { show_modal_error("At-rest Encryption", $("<p/>").text(r)); show_users(); },
+            function(r) { show_modal_error("At-rest Encryption", r); });
+        });
+
+      $('#pgp_remove_link').click(function() {
+        $('.modal').modal('hide');
+        show_modal_confirm(
+          "Remove Encryption Key",
+          $("<p>Stop encrypting new mail for <b>" + email + "</b> and delete the stored public key?</p>"),
+          "Remove Key",
+          function() {
+            api(
+              "/mail/users/pgp/remove",
+              "POST",
+              { email: email },
+              function(r) { show_modal_error("At-rest Encryption", $("<p/>").text(r)); show_users(); },
+              function(r) { show_modal_error("At-rest Encryption", r); });
+          });
+        return false;
+      });
+    },
+    function(r) {
+      show_modal_error("At-rest Encryption", r);
     });
 }
 

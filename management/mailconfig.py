@@ -507,6 +507,99 @@ def add_remove_mail_user_privilege(email, priv, action, env):
 
 	return "OK"
 
+def get_user_pgp_key_path(email, env):
+	# Returns the path to the account's stored public key, or None if the email
+	# is not a valid local user address.
+	email = email.strip().lower()
+	if "@" not in email:
+		return None
+	user, domain = email.rsplit("@", 1)
+	if not re.match(r'^[a-z0-9._+\-]+$', user) or not re.match(r'^[a-z0-9.\-]+$', domain):
+		return None
+	return os.path.join(env['STORAGE_ROOT'], 'mail/pgp_keys', domain, user + '.asc')
+
+def describe_pgp_key(key_path):
+	# Best-effort parse of a stored public key into {fingerprint, uids} using
+	# gpg in a throwaway home directory. Returns {} if gpg can't read it.
+	import subprocess, tempfile, shutil
+	home = tempfile.mkdtemp(prefix="miab-pgp-")
+	try:
+		base = ["gpg", "--homedir", home, "--batch", "--no-tty", "--quiet"]
+		if subprocess.run(base + ["--import", key_path], capture_output=True).returncode != 0:
+			return {}
+		out = subprocess.run(base + ["--with-colons", "--list-keys"],
+			capture_output=True).stdout.decode("utf-8", "replace")
+		fingerprint = None
+		uids = []
+		for line in out.splitlines():
+			f = line.split(":")
+			if f[0] == "fpr" and fingerprint is None:
+				fingerprint = f[9]
+			elif f[0] == "uid":
+				uids.append(f[9])
+		return {"fingerprint": fingerprint, "uids": uids}
+	except FileNotFoundError:
+		return {}
+	finally:
+		shutil.rmtree(home, ignore_errors=True)
+
+def get_user_pgp_key(email, env):
+	# Returns info about the account's at-rest encryption key, or that none is set.
+	if email not in get_mail_users(env):
+		return (f"That's not a user ({email}).", 400)
+	path = get_user_pgp_key_path(email, env)
+	if not path or not os.path.exists(path) or os.path.getsize(path) == 0:
+		return {"email": email, "has_key": False}
+	info = describe_pgp_key(path)
+	return {"email": email, "has_key": True, **info}
+
+def set_user_pgp_key(email, key_data, env):
+	# Stores an ASCII-armored PUBLIC key for the account. Incoming mail will then
+	# be encrypted to it at rest.
+	if email not in get_mail_users(env):
+		return (f"That's not a user ({email}).", 400)
+	if key_data is None or "BEGIN PGP PUBLIC KEY BLOCK" not in key_data:
+		return ("That doesn't look like an ASCII-armored PGP public key.", 400)
+	if "PRIVATE KEY" in key_data:
+		return ("Refusing to store a PRIVATE key. Upload only your PUBLIC key.", 400)
+
+	path = get_user_pgp_key_path(email, env)
+	if not path:
+		return ("Invalid email address.", 400)
+
+	# Validate that gpg can actually parse it before we commit it to disk.
+	import subprocess, tempfile, shutil
+	home = tempfile.mkdtemp(prefix="miab-pgp-")
+	try:
+		r = subprocess.run(["gpg", "--homedir", home, "--batch", "--no-tty",
+			"--import"], input=key_data.encode("utf-8"), capture_output=True)
+		if r.returncode != 0:
+			return ("gpg could not import that key: " + r.stderr.decode("utf-8", "replace"), 400)
+	except FileNotFoundError:
+		pass  # gpg not present in this context; skip validation, the filter will validate at delivery
+	finally:
+		shutil.rmtree(home, ignore_errors=True)
+
+	os.makedirs(os.path.dirname(path), exist_ok=True)
+	with open(path, "w", encoding="utf-8") as f:
+		f.write(key_data if key_data.endswith("\n") else key_data + "\n")
+	# Keys are public, but keep ownership consistent with the mail store.
+	try:
+		import shutil as _sh
+		_sh.chown(path, user="mail", group="mail")
+		_sh.chown(os.path.dirname(path), user="mail", group="mail")
+	except (LookupError, PermissionError, FileNotFoundError):
+		pass
+	return "Saved. New mail to this account will be encrypted at rest."
+
+def remove_user_pgp_key(email, env):
+	if email not in get_mail_users(env):
+		return (f"That's not a user ({email}).", 400)
+	path = get_user_pgp_key_path(email, env)
+	if path and os.path.exists(path):
+		os.unlink(path)
+	return "Removed. New mail to this account will be stored unencrypted."
+
 def add_mail_alias(address, forwards_to, permitted_senders, env, update_if_exists=False, do_kick=True):
 	# convert Unicode domain to IDNA
 	address = sanitize_idn_email_address(address)

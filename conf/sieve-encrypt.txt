@@ -1,0 +1,14 @@
+# Mail-in-a-Box global Sieve: encrypt mail at rest to the recipient's PGP key.
+#
+# Runs for every account at delivery (sieve_before2), after SpamAssassin and
+# after the spam-to-folder sieve. It hands the message to the pgp-encrypt
+# filter program, which encrypts it to the account's public key if one has been
+# uploaded in the control panel, and otherwise passes it through unchanged.
+
+require ["vnd.dovecot.filter", "envelope", "variables"];
+
+if envelope :matches "to" "*" {
+  set "recipient" "${1}";
+}
+
+filter "pgp-encrypt" "${recipient}";

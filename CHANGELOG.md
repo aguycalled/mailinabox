@@ -1,6 +1,11 @@
 CHANGELOG
 =========
 
+Unreleased
+----------
+
+* Added optional at-rest PGP encryption of incoming mail. Upload a per-account PGP public key in the control panel (Users → "encryption") and new mail to that account is encrypted to the key (PGP/MIME) at delivery, after spam filtering, before it is written to disk. Accounts without a key are unaffected. See the Security Guide for caveats (only the body is encrypted; webmail shows ciphertext).
+
 Version 76 (May 24, 2026)
 -------------------------
 
