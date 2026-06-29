@@ -1,0 +1,7 @@
+node_modules
+*.local
+.DS_Store
+
+# NOTE: dist/ is intentionally committed. The box has no Node toolchain, so
+# setup/management.sh installs the prebuilt bundle. Rebuild with `npm run build`
+# and commit the result.

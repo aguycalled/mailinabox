@@ -5,7 +5,49 @@ By [@JoshData](https://github.com/JoshData) and [contributors](https://github.co
 
 Mail-in-a-Box helps individuals take back control of their email by defining a one-click, easy-to-deploy SMTP+everything else server: a mail server in a box.
 
-**Please see [https://mailinabox.email](https://mailinabox.email) for the project's website and setup guide!**
+**Please see [https://mailinabox.email](https://mailinabox.email) for the upstream project's website and setup guide!**
+
+* * *
+
+This Fork
+---------
+
+This is a privacy-focused fork of Mail-in-a-Box. On top of everything upstream provides, it adds:
+
+* **A modern React control panel** served at `/admin`. The classic panel is still available at `/admin-old`.
+* **At-rest PGP encryption of incoming mail.** Upload a per-account public key in the control panel and new mail to that account is encrypted (PGP/MIME) before it touches disk. Accounts without a key are unaffected.
+* **Passkey (WebAuthn) two-factor login** for the control panel, alongside the existing authenticator-app (TOTP) option. (Passkeys need an optional dependency; see [`setup/management.sh`](setup/management.sh).)
+* **Webmail blocks remote images by default**, so tracking pixels don't load until you choose to show them.
+
+See [`security.md`](security.md) for the security details and caveats, and [`PRIVACY-ROADMAP.md`](PRIVACY-ROADMAP.md) for what's next.
+
+### Install (fresh Ubuntu 22.04 machine)
+
+```
+curl -sL https://raw.githubusercontent.com/aguycalled/mailinabox/main/setup.sh | sudo bash
+```
+
+This clones the fork and runs the normal Mail-in-a-Box setup. You can pin a different branch or repo with environment variables, e.g. `... | sudo BRANCH=mybranch bash`.
+
+### Migrating from a stock (legacy) Mail-in-a-Box
+
+Your mail, settings, and users live in `/home/user-data` and are **not** modified by switching to this fork, so migration is low-risk. Take a backup first either way.
+
+**Option A — in-place upgrade (same machine).** Convert an existing Mail-in-a-Box box to this fork by pointing its checkout at the fork and re-running setup:
+
+```
+cd $HOME/mailinabox
+git remote add fork https://github.com/aguycalled/mailinabox
+git fetch fork
+git checkout -B main fork/main
+sudo setup/start.sh
+```
+
+Setup is idempotent: it reconfigures the box, installs the new control panel at `/admin`, and leaves your data in place. It restarts Postfix/Dovecot, so expect a brief mail interruption. Your existing logins, the classic panel (now at `/admin-old`), and the public API at `/admin/*` keep working.
+
+**Option B — fresh machine + restore (cleanest).** Stand up a new Ubuntu 22.04 server, install this fork with the one-liner above using the **same primary hostname**, then restore your old box's encrypted backup from `/home/user-data/backup` onto it (copy the backup directory over and follow the upstream [backup/restore guide](https://mailinabox.email/maintenance.html)). Finally, repoint your DNS/glue records at the new machine.
+
+After migrating, review the new privacy features in the control panel: upload PGP keys under **Users → Encryption**, and add a passkey under **Two-Factor Auth**.
 
 * * *
 

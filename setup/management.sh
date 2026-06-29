@@ -99,6 +99,18 @@ unzip -q /tmp/bootstrap.zip -d $assets_dir
 mv $assets_dir/bootstrap-$bootstrap_version-dist $assets_dir/bootstrap
 rm -f /tmp/bootstrap.zip
 
+# Install the modern React control panel (served as static files at /admin by
+# nginx; see conf/nginx-primaryonly.conf). We ship a prebuilt bundle so the box
+# needs no Node.js toolchain. To rebuild it after changing the source, run
+# `npm ci && npm run build` in management/ui-react and commit the dist/ folder.
+if [ -d management/ui-react/dist ]; then
+	rm -rf $inst_dir/ui-react
+	mkdir -p $inst_dir/ui-react
+	cp -r management/ui-react/dist/. $inst_dir/ui-react/
+else
+	echo "WARNING: management/ui-react/dist not found; the new /admin control panel will not be served. Run 'npm ci && npm run build' in management/ui-react."
+fi
+
 # Create an init script to start the management daemon and keep it
 # running after a reboot.
 # Set a long timeout since some commands take a while to run, matching
