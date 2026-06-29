@@ -45,26 +45,13 @@ hide_output $venv/bin/pip install --upgrade pip
 hide_output $venv/bin/pip install --upgrade \
 	rtyaml "email_validator>=1.0.0" "exclusiveprocess" \
 	flask dnspython python-dateutil expiringdict gunicorn \
-	qrcode[pil] pyotp \
-	"idna>=2.0.0" "cryptography==37.0.2" psutil postfix-mta-sts-resolver \
+	qrcode[pil] pyotp "webauthn>=2.0" \
+	"idna>=2.0.0" "cryptography>=44" psutil postfix-mta-sts-resolver \
 	b2sdk boto3
-
-# OPTIONAL: Passkey (WebAuthn) support for the control panel.
-#
-# The control panel includes passkey/security-key two-factor login (see
-# management/mfa.py). It is DISABLED until the `webauthn` package is installed,
-# at which point the "Add a passkey" option in the control panel starts working
-# and nothing else changes. We do not install it by default because current
-# `webauthn` releases require a much newer `cryptography` than the version
-# pinned above, and that upgrade touches the TLS/certificate code paths
-# (management/ssl_certificates.py) and so should be validated on the box first.
-#
-# To enable passkeys, after confirming certificate provisioning still works with
-# a newer cryptography, run (adjust the cryptography pin as needed):
-#
-#   $venv/bin/pip install --upgrade "cryptography>=44" "webauthn>=2.0"
-#
-# See security.md ("Control Panel Authentication") for details.
+# Note: `webauthn` powers passkey two-factor login (management/mfa.py) and needs
+# a newer `cryptography` than upstream pinned (==37.0.2). The bump is safe for
+# the cert code (management/ssl_certificates.py) -- it uses only stable x509/CSR
+# APIs, verified on cryptography 49.
 
 # CONFIGURATION
 

@@ -65,7 +65,7 @@ Logging into the administrative control panel requires the user's email address 
 
 Any one enabled second factor satisfies the check. Changing a user's password or their set of second factors invalidates all of that user's existing control-panel sessions. These factors protect the control panel only, not IMAP/SMTP/webmail logins.
 
-Passkey support depends on the optional `webauthn` Python package. It is not installed by default (it requires a newer `cryptography` than the pinned version, which also affects the certificate code), so passkeys are inactive until an administrator installs it; see [setup/management.sh](setup/management.sh).
+Passkey support uses the `webauthn` Python package, installed by default in the management virtualenv. It requires a newer `cryptography` than upstream pinned; the bump uses only stable x509/CSR APIs in the certificate code and was verified against it. If the package is ever missing, passkeys are simply inactive (the rest of the control panel is unaffected).
 
 ### Console access
 

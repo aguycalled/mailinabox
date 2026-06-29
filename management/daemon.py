@@ -567,7 +567,9 @@ def webauthn_register_begin():
 	try:
 		options = begin_webauthn_registration(request.user_email, env)
 	except ImportError:
-		return ("Passkey support is not installed on this box. Run setup again to enable it.", 501)
+		return ("Passkey support requires the 'webauthn' Python package, which isn't installed. "
+			"Install it into the management virtualenv with: "
+			"/usr/local/lib/mailinabox/env/bin/pip install 'cryptography>=44' 'webauthn>=2'", 501)
 	except Exception as e:
 		return (str(e), 400)
 	return Response(options, mimetype="application/json")
