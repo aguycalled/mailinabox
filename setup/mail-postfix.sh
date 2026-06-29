@@ -246,7 +246,7 @@ tools/editconf.py /etc/postfix/main.cf \
 # As a matter of fact RFC is not strict about retry timer so postfix and
 # other MTA have their own intervals. To fix the problem of receiving
 # e-mails really latter, delay of greylisting has been set to
-# 180 seconds (default is 300 seconds). We will move the postgrey database
+# 60 seconds (default is 300 seconds). We will move the postgrey database
 # under $STORAGE_ROOT. This prevents a "warming up" that would have occurred
 # previously with a migrated or reinstalled OS.  We will specify this new path
 # with the --dbdir=... option. Arguments within POSTGREY_OPTS can not have spaces,
@@ -256,7 +256,7 @@ tools/editconf.py /etc/postfix/main.cf \
 # symlink without spaces that can point to a folder with spaces).  We'll just assume
 # $STORAGE_ROOT won't have spaces to simplify things.
 tools/editconf.py /etc/default/postgrey \
-	POSTGREY_OPTS=\""--inet=127.0.0.1:10023 --delay=180 --dbdir=$STORAGE_ROOT/mail/postgrey/db"\"
+	POSTGREY_OPTS=\""--inet=127.0.0.1:10023 --delay=60 --dbdir=$STORAGE_ROOT/mail/postgrey/db"\"
 
 
 # If the $STORAGE_ROOT/mail/postgrey is empty, copy the postgrey database over from the old location
