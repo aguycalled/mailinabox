@@ -49,6 +49,23 @@ hide_output $venv/bin/pip install --upgrade \
 	"idna>=2.0.0" "cryptography==37.0.2" psutil postfix-mta-sts-resolver \
 	b2sdk boto3
 
+# OPTIONAL: Passkey (WebAuthn) support for the control panel.
+#
+# The control panel includes passkey/security-key two-factor login (see
+# management/mfa.py). It is DISABLED until the `webauthn` package is installed,
+# at which point the "Add a passkey" option in the control panel starts working
+# and nothing else changes. We do not install it by default because current
+# `webauthn` releases require a much newer `cryptography` than the version
+# pinned above, and that upgrade touches the TLS/certificate code paths
+# (management/ssl_certificates.py) and so should be validated on the box first.
+#
+# To enable passkeys, after confirming certificate provisioning still works with
+# a newer cryptography, run (adjust the cryptography pin as needed):
+#
+#   $venv/bin/pip install --upgrade "cryptography>=44" "webauthn>=2.0"
+#
+# See security.md ("Control Panel Authentication") for details.
+
 # CONFIGURATION
 
 # Create a backup directory and a random key for encrypting backups.

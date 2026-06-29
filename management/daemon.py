@@ -24,6 +24,7 @@ from mailconfig import get_mail_aliases, get_mail_aliases_ex, get_mail_domains, 
 from mailconfig import get_mail_quota, set_mail_quota
 from mailconfig import get_user_pgp_key, set_user_pgp_key, remove_user_pgp_key
 from mfa import get_public_mfa_state, provision_totp, validate_totp_secret, enable_mfa, disable_mfa
+from mfa import begin_webauthn_registration, complete_webauthn_registration, begin_webauthn_authentication
 import contextlib
 
 env = utils.load_environment()
@@ -143,16 +144,36 @@ def login():
 	try:
 		email, privs = auth_service.authenticate(request, env, login_only=True)
 	except ValueError as e:
-		if "missing-totp-token" in str(e):
+		reason = str(e)
+		if "missing-totp-token" in reason:
 			return json_response({
 				"status": "missing-totp-token",
-				"reason": str(e),
+				"reason": reason,
 			})
+		# The user's password is correct but they need to complete a passkey
+		# (WebAuthn) challenge. Issue one for the browser to sign. We only reach
+		# here with a correct password, so revealing that a passkey is required
+		# does not leak anything an attacker couldn't already infer.
+		if "missing-webauthn-assertion" in reason or "invalid-webauthn-assertion" in reason:
+			username = auth_service.get_basic_auth_username(request)
+			options = None
+			try:
+				if username:
+					options = begin_webauthn_authentication(username, env)
+			except Exception as ex:
+				app.logger.warning("Could not begin WebAuthn authentication: %s", ex)
+			if options:
+				return json_response({
+					"status": "missing-webauthn",
+					"reason": reason,
+					"webauthn_options": json.loads(options),
+					"invalid": "invalid-webauthn-assertion" in reason,
+				})
 		# Log the failed login
 		log_failed_login(request)
 		return json_response({
 			"status": "invalid",
-			"reason": str(e),
+			"reason": reason,
 		})
 
 	# Return a new session for the user.
@@ -534,6 +555,33 @@ def totp_post_enable():
 	try:
 		validate_totp_secret(secret)
 		enable_mfa(request.user_email, "totp", secret, token, label, env)
+	except ValueError as e:
+		return (str(e), 400)
+	return "OK"
+
+@app.route('/mfa/webauthn/register/begin', methods=['POST'])
+@authorized_personnel_only
+def webauthn_register_begin():
+	# Returns the PublicKeyCredentialCreationOptions for the browser to create
+	# a new passkey for the logged-in user.
+	try:
+		options = begin_webauthn_registration(request.user_email, env)
+	except ImportError:
+		return ("Passkey support is not installed on this box. Run setup again to enable it.", 501)
+	except Exception as e:
+		return (str(e), 400)
+	return Response(options, mimetype="application/json")
+
+@app.route('/mfa/webauthn/register/complete', methods=['POST'])
+@authorized_personnel_only
+def webauthn_register_complete():
+	# Verifies the browser's attestation and stores the new passkey.
+	credential = request.form.get('credential')
+	label = request.form.get('label')
+	if not credential:
+		return ("Missing credential.", 400)
+	try:
+		complete_webauthn_registration(request.user_email, credential, label, env)
 	except ValueError as e:
 		return (str(e), 400)
 	return "OK"

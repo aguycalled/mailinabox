@@ -86,7 +86,7 @@ sudo management/cli.py user make-admin me@{{hostname}}</pre>
 </div>
 
 <script>
-function do_login() {
+function do_login(webauthn_assertion) {
   if ($('#loginEmail').val() == "") {
     show_modal_error("Login Failed", "Enter your email address.", function() {
       $('#loginEmail').focus();
@@ -107,12 +107,18 @@ function do_login() {
   api(
   "/login",
   "POST",
-  {},
+  webauthn_assertion ? { webauthn_assertion: webauthn_assertion } : {},
   function(response) {
     // This API call always succeeds. It returns a JSON object indicating
     // whether the request was authenticated or not.
     if (response.status != 'ok') {
-      if (response.status === 'missing-totp-token' || (response.status === 'invalid' && response.reason == 'invalid-totp-token')) {
+      if (response.status === 'missing-webauthn') {
+        // The password is correct; finish the login with a passkey.
+        if (response.invalid)
+          show_modal_error("Login Failed", "That passkey could not be verified. Please try again.");
+        do_login_webauthn(response.webauthn_options);
+        return;
+      } else if (response.status === 'missing-totp-token' || (response.status === 'invalid' && response.reason == 'invalid-totp-token')) {
         $('#loginForm').addClass('is-twofactor');
         if (response.reason === "invalid-totp-token") {
           show_modal_error("Login Failed", "Incorrect two factor authentication token.");
@@ -186,6 +192,24 @@ function do_login() {
   {
     'x-auth-token': $('#loginOtpInput').val()
   });
+}
+
+function do_login_webauthn(options) {
+  // The server verified the password and handed us a passkey challenge. Ask
+  // the browser to sign it, then resubmit the login with the assertion.
+  if (!webauthn_supported) {
+    show_modal_error("Login Failed", "This account requires a passkey, but this browser does not support them.");
+    do_logout();
+    return;
+  }
+  navigator.credentials.get({ publicKey: webauthn_prepare_request_options(options) })
+    .then(function(assertion) {
+      do_login(webauthn_serialize_assertion(assertion));
+    })
+    .catch(function(err) {
+      show_modal_error("Login Failed", "Could not use a passkey: " + err.message);
+      do_logout();
+    });
 }
 
 function show_login() {

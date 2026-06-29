@@ -1,23 +1,9 @@
 <style>
-    .twofactor #totp-setup,
-    .twofactor #disable-2fa,
-    .twofactor #output-2fa {
-        display: none;
-    }
+    .twofactor .loading-indicator { display: none; }
+    .twofactor.loading .loading-indicator { display: block; }
 
-    .twofactor.loaded .loading-indicator {
-        display: none;
-    }
-
-    .twofactor.disabled #disable-2fa,
-    .twofactor.enabled #totp-setup {
-        display: none;
-    }
-
-    .twofactor.disabled #totp-setup,
-    .twofactor.enabled #disable-2fa {
-        display: block;
-    }
+    .twofactor #totp-setup { display: none; }
+    .twofactor #totp-setup.visible { display: block; }
 
     .twofactor #totp-setup-qr img {
         display: block;
@@ -26,15 +12,15 @@
         height: auto;
     }
 
-    .twofactor #output-2fa.visible {
-        display: block;
-    }
+    .twofactor #output-2fa { display: none; }
+    .twofactor #output-2fa.visible { display: block; }
+
+    #mfa-factors td { vertical-align: middle; }
 </style>
 
 <h2>Two-Factor Authentication</h2>
 
-<p>When two-factor authentication is enabled, you will be prompted to enter a six digit code from an
-authenticator app (usually on your phone) when you log into this control panel.</p>
+<p>Add a second factor &mdash; a passkey (security key, phone, or laptop biometrics) or an authenticator app &mdash; to require more than a password when logging into this control panel.</p>
 
 <div class="panel panel-danger">
 <div class="panel-heading">
@@ -53,11 +39,34 @@ and ensure every administrator account for this control panel does the same.</st
 <div class="twofactor">
     <div class="loading-indicator">Loading...</div>
 
-    <form id="totp-setup">
-        <h3>Setup Instructions</h3>
+    <div id="output-2fa" class="panel panel-danger">
+        <div class="panel-body"></div>
+    </div>
 
+    <h3>Your second factors</h3>
+    <p id="mfa-none" style="display:none">No second factor is set up. Your account is protected by your password only.</p>
+    <table id="mfa-factors" class="table" style="width:auto; display:none">
+        <thead><tr><th scope="col">Type</th><th scope="col">Name</th><th scope="col"></th></tr></thead>
+        <tbody></tbody>
+    </table>
+
+    <h3>Add a passkey</h3>
+    <p>A passkey lets you sign in with a hardware security key, your phone, or your computer&rsquo;s fingerprint/face unlock instead of an authenticator code. Passkeys are phishing-resistant and bound to this box&rsquo;s hostname.</p>
+    <div id="passkey-unsupported" class="text-danger" style="display:none">This browser does not support passkeys (WebAuthn).</div>
+    <form id="passkey-setup" class="form-inline" onsubmit="return do_add_passkey();">
         <div class="form-group">
-            <p>1. Install <a href="https://freeotp.github.io/">FreeOTP</a> or <a href="https://www.pcworld.com/article/3225913/what-is-two-factor-authentication-and-which-2fa-apps-are-best.html">any
+            <label class="sr-only" for="passkey-label">Passkey name</label>
+            <input type="text" id="passkey-label" class="form-control" placeholder="e.g. YubiKey, my phone" />
+        </div>
+        <button type="submit" class="btn btn-primary">Add a passkey</button>
+    </form>
+    <p style="margin-top:.5em; font-size:90%; color:#888">You must reach this control panel at <code>https://{{hostname}}/admin</code> for passkeys to work, because browsers bind each passkey to that exact hostname.</p>
+
+    <h3 style="margin-top:1.5em">Add an authenticator app</h3>
+    <p><a href="#" id="totp-toggle">Set up an app that generates six-digit codes (TOTP)</a>.</p>
+    <form id="totp-setup">
+        <div class="form-group">
+            <p>1. Install <a href="https://freeotp.github.io/">FreeOTP</a> or <a href="https://en.wikipedia.org/wiki/Comparison_of_OTP_applications">any
             other two-factor authentication app</a> that supports TOTP.</p>
         </div>
 
@@ -79,30 +88,15 @@ and ensure every administrator account for this control panel does the same.</st
         <input type="hidden" id="totp-setup-secret" />
 
         <div class="form-group">
-            <p>When you click Enable Two-Factor Authentication, you will be logged out of the control panel and will have to log in
-            again, now using your two-factor authentication app.</p>
-            <button id="totp-setup-submit" disabled type="submit" class="btn">Enable Two-Factor Authentication</button>
+            <p>When you click Enable, you will be logged out of the control panel and will have to log in
+            again using your second factor.</p>
+            <button id="totp-setup-submit" disabled type="submit" class="btn">Enable</button>
         </div>
     </form>
-
-    <form id="disable-2fa">
-        <div class="form-group">
-            <p>Two-factor authentication is active for your account<span id="mfa-device-label"></span>.</p>
-            <p>You will have to log into the admin panel again after disabling two-factor authentication.</p>
-        </div>
-        <div class="form-group">
-            <button type="submit" class="btn btn-danger">Disable Two-Factor Authentication</button>
-        </div>
-    </form>
-
-    <div id="output-2fa" class="panel panel-danger">
-        <div class="panel-body"></div>
-    </div>
 </div>
 
 <script>
     var el = {
-        disableForm: document.getElementById('disable-2fa'),
         output: document.getElementById('output-2fa'),
         totpSetupForm: document.getElementById('totp-setup'),
         totpSetupToken: document.getElementById('totp-setup-token'),
@@ -115,7 +109,6 @@ and ensure every administrator account for this control panel does the same.</st
 
     function update_setup_disabled(evt) {
         var val = evt.target.value.trim();
-
         if (
             typeof val !== 'string' ||
             typeof el.totpSetupSecret.value !== 'string' ||
@@ -129,32 +122,6 @@ and ensure every administrator account for this control panel does the same.</st
         }
     }
 
-    function render_totp_setup(provisioned_totp) {
-        var img = document.createElement('img');
-        img.src = "data:image/png;base64," + provisioned_totp.qr_code_base64;
-        img.alt = "QR code, scan this in your authenticator app"
-
-        var code = document.createElement('div');
-        code.innerHTML = `Secret: ${provisioned_totp.secret}`;
-
-        el.totpQr.appendChild(img);
-        el.totpQr.appendChild(code);
-
-        el.totpSetupToken.addEventListener('input', update_setup_disabled);
-        el.totpSetupForm.addEventListener('submit', do_enable_totp);
-
-        el.totpSetupSecret.setAttribute('value', provisioned_totp.secret);
-
-        el.wrapper.classList.add('disabled');
-    }
-
-    function render_disable(mfa) {
-        el.disableForm.addEventListener('submit', do_disable);
-        el.wrapper.classList.add('enabled');
-        if (mfa.label)
-          $("#mfa-device-label").text(" on device '" + mfa.label + "'");
-    }
-
     function hide_error() {
         el.output.querySelector('.panel-body').innerHTML = '';
         el.output.classList.remove('visible');
@@ -165,67 +132,106 @@ and ensure every administrator account for this control panel does the same.</st
         el.output.classList.add('visible');
     }
 
-    function reset_view() {
-        el.wrapper.classList.remove('loaded', 'disabled', 'enabled');
+    function render_factors(enabled_mfa) {
+        var tbody = $('#mfa-factors tbody');
+        tbody.html('');
+        if (!enabled_mfa.length) {
+            $('#mfa-none').show();
+            $('#mfa-factors').hide();
+            return;
+        }
+        $('#mfa-none').hide();
+        $('#mfa-factors').show();
+        enabled_mfa.forEach(function(mfa) {
+            var type = (mfa.type == 'webauthn') ? 'Passkey' : (mfa.type == 'totp' ? 'Authenticator app' : mfa.type);
+            var row = $("<tr><td class='type'></td><td class='label'></td><td><a href='#' class='remove text-danger'>remove</a></td></tr>");
+            row.find('.type').text(type);
+            row.find('.label').text(mfa.label || '');
+            row.find('.remove').click(function() { do_remove_factor(mfa.id, mfa.label || type); return false; });
+            tbody.append(row);
+        });
+    }
 
-        el.disableForm.removeEventListener('submit', do_disable);
-
-        hide_error();
-
-        el.totpSetupForm.reset();
-        el.totpSetupForm.removeEventListener('submit', do_enable_totp);
-
-        el.totpSetupSecret.setAttribute('value', '');
-        el.totpSetupToken.removeEventListener('input', update_setup_disabled);
-
-        el.totpSetupSubmit.setAttribute('disabled', '');
+    function render_totp_setup(provisioned_totp) {
         el.totpQr.innerHTML = '';
+        var img = document.createElement('img');
+        img.src = "data:image/png;base64," + provisioned_totp.qr_code_base64;
+        img.alt = "QR code, scan this in your authenticator app"
+        var code = document.createElement('div');
+        code.innerHTML = `Secret: ${provisioned_totp.secret}`;
+        el.totpQr.appendChild(img);
+        el.totpQr.appendChild(code);
+        el.totpSetupSecret.setAttribute('value', provisioned_totp.secret);
     }
 
     function show_mfa() {
-        reset_view();
+        hide_error();
+        el.wrapper.classList.add('loading');
+        $('#totp-setup').removeClass('visible');
+        el.totpSetupForm.reset();
+        el.totpSetupSubmit.setAttribute('disabled', '');
+
+        $('#passkey-unsupported').toggle(!webauthn_supported);
+        $('#passkey-setup').toggle(webauthn_supported);
 
         api(
             '/mfa/status',
             'POST',
             {},
             function(res) {
-                el.wrapper.classList.add('loaded');
-
-                var has_mfa = false;
-                res.enabled_mfa.forEach(function(mfa) {
-                    if (mfa.type == "totp") {
-                        render_disable(mfa);
-                        has_mfa = true;
-                    }
-                });
-
-                if (!has_mfa)
-                  render_totp_setup(res.new_mfa.totp);
+                el.wrapper.classList.remove('loading');
+                render_factors(res.enabled_mfa);
+                if (res.new_mfa && res.new_mfa.totp)
+                    render_totp_setup(res.new_mfa.totp);
             }
         );
     }
 
-    function do_disable(evt) {
-        evt.preventDefault();
-        hide_error();
-
-        api(
-            '/mfa/disable',
-            'POST',
-            { type: 'totp' },
+    function do_remove_factor(mfa_id, name) {
+        show_modal_confirm(
+            "Remove Second Factor",
+            $("<p>Remove <b></b>? You will be logged out and will need to log in again.</p>").find('b').text(name).end(),
+            "Remove",
             function() {
-                do_logout();
-            }
-        );
+                hide_error();
+                api('/mfa/disable', 'POST', { 'mfa-id': mfa_id }, function() { do_logout(); });
+            });
+    }
 
+    function do_add_passkey() {
+        hide_error();
+        if (!webauthn_supported) {
+            render_error("This browser does not support passkeys.");
+            return false;
+        }
+        var label = $('#passkey-label').val();
+        api(
+            '/mfa/webauthn/register/begin',
+            'POST',
+            {},
+            function(options) {
+                navigator.credentials.create({ publicKey: webauthn_prepare_creation_options(options) })
+                    .then(function(cred) {
+                        api(
+                            '/mfa/webauthn/register/complete',
+                            'POST',
+                            { credential: webauthn_serialize_attestation(cred), label: label },
+                            function() { do_logout(); },
+                            function(err) { render_error(err); }
+                        );
+                    })
+                    .catch(function(err) {
+                        render_error("Could not create a passkey: " + err.message);
+                    });
+            },
+            function(err) { render_error(err); }
+        );
         return false;
     }
 
     function do_enable_totp(evt) {
         evt.preventDefault();
         hide_error();
-
         api(
             '/mfa/totp/enable',
             'POST',
@@ -237,7 +243,12 @@ and ensure every administrator account for this control panel does the same.</st
             function(res) { do_logout(); },
             function(res) { render_error(res); }
         );
-
         return false;
     }
+
+    $(function() {
+        $('#totp-toggle').click(function() { $('#totp-setup').toggleClass('visible'); return false; });
+        el.totpSetupToken.addEventListener('input', update_setup_disabled);
+        el.totpSetupForm.addEventListener('submit', do_enable_totp);
+    });
 </script>

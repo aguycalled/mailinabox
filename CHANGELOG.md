@@ -5,6 +5,9 @@ Unreleased
 ----------
 
 * Added optional at-rest PGP encryption of incoming mail. Upload a per-account PGP public key in the control panel (Users → "encryption") and new mail to that account is encrypted to the key (PGP/MIME) at delivery, after spam filtering, before it is written to disk. Accounts without a key are unaffected. See the Security Guide for caveats (only the body is encrypted; webmail shows ciphertext).
+* Added passkey (WebAuthn) two-factor login for the control panel, alongside the existing authenticator-app (TOTP) option, with support for multiple second factors per account. Passkeys require the optional `webauthn` Python package and are inactive until it is installed (see setup/management.sh).
+* Webmail now blocks remote images by default so tracking pixels don't load until you choose to show them for a message.
+* Added PRIVACY-ROADMAP.md outlining further privacy enhancements under consideration.
 
 Version 76 (May 24, 2026)
 -------------------------

@@ -56,6 +56,17 @@ Additionally:
 
 The passwords for mail users are stored on disk using the [SHA512-CRYPT](http://man7.org/linux/man-pages/man3/crypt.3.html) hashing scheme. ([source](management/mailconfig.py)) Password changes (as well as changes to control panel two-factor authentication settings) expire any control panel login sessions.
 
+### Control Panel Authentication
+
+Logging into the administrative control panel requires the user's email address and password. Users may additionally enable one or more second factors, which are then required to log in: ([source](management/mfa.py))
+
+* **Authenticator app (TOTP).** A six-digit time-based code from an app such as FreeOTP. The shared secret is stored on the box; a replay guard rejects a code that was just used.
+* **Passkeys (WebAuthn).** A hardware security key, phone, or the computer's built-in biometric authenticator. Only the credential's public key and signature counter are stored on the box, the private key never leaves the authenticator, and the credential is cryptographically bound to the box's hostname, which makes passkey logins phishing-resistant. After the password is verified, the browser must sign a fresh server-issued challenge; the signature is checked against the stored public key and the signature counter is advanced to detect cloned authenticators.
+
+Any one enabled second factor satisfies the check. Changing a user's password or their set of second factors invalidates all of that user's existing control-panel sessions. These factors protect the control panel only, not IMAP/SMTP/webmail logins.
+
+Passkey support depends on the optional `webauthn` Python package. It is not installed by default (it requires a newer `cryptography` than the pinned version, which also affects the certificate code), so passkeys are inactive until an administrator installs it; see [setup/management.sh](setup/management.sh).
+
 ### Console access
 
 Console access (e.g. via SSH) is configured by the system image used to create the box, typically from by a cloud virtual machine provider (e.g. Digital Ocean). Mail-in-a-Box does not set any console access settings, although it will warn the administrator in the System Status Checks if password-based login is turned on.

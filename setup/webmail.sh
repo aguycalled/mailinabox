@@ -146,6 +146,10 @@ cat > $RCM_CONFIG <<EOF;
 /* prevent CSRF, requires php 7.3+ */
 \$config['session_samesite'] = 'Strict';
 \$config['quota_zero_as_unlimited'] = true;
+/* Privacy: never automatically load remote images, so tracking pixels and other
+   remote content don't phone home until the user explicitly chooses to show
+   them for a given message. (0 = never; users can still load images per-message.) */
+\$config['show_images'] = 0;
 ?>
 EOF
 

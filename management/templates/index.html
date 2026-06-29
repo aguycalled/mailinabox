@@ -404,6 +404,76 @@ function api(url, method, data, callback, callback_error, headers) {
 var current_panel = null;
 var switch_back_to_panel = null;
 
+// ### WebAuthn (passkey) helpers ###
+// The control panel speaks the JSON encoding produced/consumed by the Python
+// `webauthn` library, where binary fields are base64url strings. The browser's
+// WebAuthn API works in ArrayBuffers, so we convert at the boundary.
+var webauthn_supported = (typeof window.PublicKeyCredential !== "undefined");
+
+function webauthn_b64url_to_buf(b64url) {
+  var b64 = b64url.replace(/-/g, '+').replace(/_/g, '/');
+  while (b64.length % 4) b64 += '=';
+  var raw = atob(b64);
+  var buf = new Uint8Array(raw.length);
+  for (var i = 0; i < raw.length; i++) buf[i] = raw.charCodeAt(i);
+  return buf.buffer;
+}
+
+function webauthn_buf_to_b64url(buf) {
+  var bytes = new Uint8Array(buf);
+  var str = '';
+  for (var i = 0; i < bytes.length; i++) str += String.fromCharCode(bytes[i]);
+  return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+// Convert server creation options (base64url) into the form navigator.credentials.create expects.
+function webauthn_prepare_creation_options(options) {
+  options.challenge = webauthn_b64url_to_buf(options.challenge);
+  options.user.id = webauthn_b64url_to_buf(options.user.id);
+  if (options.excludeCredentials)
+    options.excludeCredentials.forEach(function(c) { c.id = webauthn_b64url_to_buf(c.id); });
+  return options;
+}
+
+// Convert server request options (base64url) into the form navigator.credentials.get expects.
+function webauthn_prepare_request_options(options) {
+  options.challenge = webauthn_b64url_to_buf(options.challenge);
+  if (options.allowCredentials)
+    options.allowCredentials.forEach(function(c) { c.id = webauthn_b64url_to_buf(c.id); });
+  return options;
+}
+
+// Serialize a newly-created credential back to the library's JSON shape.
+function webauthn_serialize_attestation(cred) {
+  return JSON.stringify({
+    id: cred.id,
+    rawId: webauthn_buf_to_b64url(cred.rawId),
+    type: cred.type,
+    response: {
+      attestationObject: webauthn_buf_to_b64url(cred.response.attestationObject),
+      clientDataJSON: webauthn_buf_to_b64url(cred.response.clientDataJSON)
+    },
+    transports: (cred.response.getTransports ? cred.response.getTransports() : []),
+    clientExtensionResults: cred.getClientExtensionResults()
+  });
+}
+
+// Serialize an assertion (sign-in) back to the library's JSON shape.
+function webauthn_serialize_assertion(cred) {
+  return JSON.stringify({
+    id: cred.id,
+    rawId: webauthn_buf_to_b64url(cred.rawId),
+    type: cred.type,
+    response: {
+      authenticatorData: webauthn_buf_to_b64url(cred.response.authenticatorData),
+      clientDataJSON: webauthn_buf_to_b64url(cred.response.clientDataJSON),
+      signature: webauthn_buf_to_b64url(cred.response.signature),
+      userHandle: cred.response.userHandle ? webauthn_buf_to_b64url(cred.response.userHandle) : null
+    },
+    clientExtensionResults: cred.getClientExtensionResults()
+  });
+}
+
 function clear_credentials() {
   // Forget the token.
   api_credentials = null;

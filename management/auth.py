@@ -92,6 +92,20 @@ class AuthService:
 		# Return the authorization information.
 		return (username, privs)
 
+	def get_basic_auth_username(self, request):
+		# Best-effort extraction of the username (email) from the HTTP Basic
+		# Authorization header, used by the login route to know whose passkey
+		# challenge to generate. Returns None if it can't be parsed.
+		try:
+			header = request.headers.get('Authorization', '')
+			scheme, credentials = header.split(maxsplit=1)
+			if scheme != 'Basic':
+				return None
+			username, _, _ = base64.b64decode(credentials.encode('ascii')).decode('ascii').partition(':')
+			return username or None
+		except Exception:
+			return None
+
 	def check_user_auth(self, email, pw, request, env):
 		# Validate a user's login email address and password. If MFA is enabled,
 		# check the MFA token in the X-Auth-Token header.
