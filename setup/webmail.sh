@@ -135,7 +135,7 @@ cat > $RCM_CONFIG <<EOF;
 \$config['product_name'] = '$PRIMARY_HOSTNAME Webmail';
 \$config['cipher_method'] = 'AES-256-CBC'; # persistent login cookie and potentially other things
 \$config['des_key'] = '$SECRET_KEY'; # 37 characters -> ~256 bits for AES-256, see above
-\$config['plugins'] = array('html5_notifier', 'archive', 'zipdownload', 'password', 'managesieve', 'jqueryui', 'persistent_login', 'carddav');
+\$config['plugins'] = array('html5_notifier', 'archive', 'zipdownload', 'password', 'managesieve', 'jqueryui', 'persistent_login', 'carddav', 'enigma');
 \$config['skin'] = 'elastic';
 \$config['login_autocomplete'] = 2;
 \$config['login_username_filter'] = 'email';
@@ -154,8 +154,25 @@ cat > $RCM_CONFIG <<EOF;
    activity/timing to the sender and is a common tracking vector. 2 = ignore the
    request entirely (never send, never prompt). */
 \$config['mdn_requests'] = 2;
+/* PGP in webmail via the Enigma plugin. Users manage their own keys under
+   Settings -> PGP Keys (import or generate), and can sign/encrypt a message
+   before it is sent. Per-user GnuPG keyrings (the user's own keys plus the
+   recipient public keys they import -- the "key directory") live under
+   STORAGE_ROOT so they persist across upgrades. Note: a user's PRIVATE key,
+   if generated/imported here, is stored on the server. */
+\$config['enigma_pgp_homedir'] = '$STORAGE_ROOT/mail/enigma';
+/* Default the compose options so encryption is offered but not forced. */
+\$config['enigma_encryption'] = true;
+\$config['enigma_signatures'] = true;
+\$config['enigma_decryption'] = true;
 ?>
 EOF
+
+# Create the Enigma keyring directory (per-user GnuPG homedirs are created under
+# it on demand). It must be writable by the webserver/PHP user.
+mkdir -p "$STORAGE_ROOT/mail/enigma"
+chown -R www-data:www-data "$STORAGE_ROOT/mail/enigma"
+chmod 700 "$STORAGE_ROOT/mail/enigma"
 
 # Configure CardDav
 cat > ${RCM_PLUGIN_DIR}/carddav/config.inc.php <<EOF;
