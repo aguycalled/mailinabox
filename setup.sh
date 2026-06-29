@@ -50,10 +50,27 @@ fi
 
 cd "$HOME/mailinabox" || exit 1
 
-# Make sure we're on the requested branch and up to date.
-git fetch --depth 1 --force origin "$BRANCH" < /dev/null 2> /dev/null
-git checkout -q "$BRANCH" 2> /dev/null
-git reset --hard -q "origin/$BRANCH" 2> /dev/null
+# An existing checkout may point at upstream Mail-in-a-Box (e.g. a box first set
+# up from mailinabox.email). Make sure origin is THIS fork before updating, or
+# we'd just re-run upstream's code.
+if git remote get-url origin > /dev/null 2>&1; then
+	git remote set-url origin "$SOURCE"
+else
+	git remote add origin "$SOURCE"
+fi
+
+echo "Updating to $SOURCE (branch $BRANCH) . . ."
+if ! git fetch --depth 1 --force origin "$BRANCH" < /dev/null; then
+	echo "Could not fetch $BRANCH from $SOURCE."
+	exit 1
+fi
+# Force a clean checkout of the fetched commit onto a local branch. -f discards
+# any local changes; FETCH_HEAD avoids relying on remote-tracking ref names.
+if ! git checkout -f -B "$BRANCH" FETCH_HEAD; then
+	echo "Could not check out $BRANCH."
+	exit 1
+fi
+echo
 
 # Launch the normal setup.
 setup/start.sh
