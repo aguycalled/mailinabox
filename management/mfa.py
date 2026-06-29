@@ -235,6 +235,7 @@ def validate_webauthn_assertion(email, assertion_json, env):
 	# public key. On success, advances the stored signature counter (a clone
 	# detection measure) and returns True. Returns False on any failure.
 	import webauthn
+	from webauthn.helpers import base64url_to_bytes
 
 	challenge = _webauthn_challenges.get("auth:" + email)
 	if challenge is None:
