@@ -99,7 +99,9 @@ fi
 
 if [ ! -f /usr/bin/add-apt-repository ]; then
 	echo "Installing add-apt-repository..."
-	hide_output apt-get update
+	# --allow-releaseinfo-change so a PPA renaming its Label/Origin/etc. doesn't
+	# abort setup (e.g. ppa:ondrej/php has done this).
+	hide_output apt-get update --allow-releaseinfo-change
 	apt_install software-properties-common
 fi
 

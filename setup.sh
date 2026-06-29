@@ -38,7 +38,7 @@ fi
 if [ ! -d "$HOME/mailinabox" ]; then
 	if [ ! -f /usr/bin/git ]; then
 		echo "Installing git . . ."
-		apt-get -q -q update
+		apt-get -q -q update --allow-releaseinfo-change
 		DEBIAN_FRONTEND=noninteractive apt-get -q -q install -y git < /dev/null
 		echo
 	fi
