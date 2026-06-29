@@ -107,6 +107,10 @@ async function request<T = unknown>(path: string, opts: RequestOptions = {}): Pr
 export const apiGet = <T = unknown>(path: string) => request<T>(path);
 export const apiPost = <T = unknown>(path: string, data?: Record<string, string> | string) =>
   request<T>(path, { method: "POST", data });
+export const apiPut = <T = unknown>(path: string, data?: Record<string, string> | string) =>
+  request<T>(path, { method: "PUT", data });
+export const apiDelete = <T = unknown>(path: string, data?: Record<string, string> | string) =>
+  request<T>(path, { method: "DELETE", data });
 
 // ---------- WebAuthn helpers (base64url <-> ArrayBuffer) ----------
 
@@ -274,3 +278,28 @@ export interface StatusItem {
 }
 export const getSystemStatus = () => apiPost<StatusItem[]>("/system/status");
 export const getVersion = () => apiGet<string>("/system/version");
+
+export interface DnsRecord {
+  qname: string;
+  rtype: string;
+  value: string;
+  zone?: string;
+  "sort-order": Record<string, number>;
+}
+export const getDnsRecords = () => apiGet<DnsRecord[]>("/dns/custom");
+export const getDnsZones = () => apiGet<string[]>("/dns/zones");
+
+const dnsPath = (qname: string, rtype: string) =>
+  `/dns/custom/${encodeURIComponent(qname)}/${encodeURIComponent(rtype)}`;
+// Records carry their value in the raw request body (the API reads request.stream).
+export const addDnsRecord = (qname: string, rtype: string, value: string) =>
+  apiPost<string>(dnsPath(qname, rtype), value);
+export const deleteDnsRecord = (qname: string, rtype: string, value: string) =>
+  apiDelete<string>(dnsPath(qname, rtype), value);
+
+export interface SecondaryNs {
+  hostnames: string[];
+}
+export const getSecondaryNs = () => apiGet<SecondaryNs>("/dns/secondary-nameserver");
+export const setSecondaryNs = (hostnames: string) =>
+  apiPost<string>("/dns/secondary-nameserver", { hostnames });

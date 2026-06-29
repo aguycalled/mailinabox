@@ -6,6 +6,7 @@ import Dashboard from "./pages/Dashboard";
 import UsersPage from "./pages/Users";
 import AliasesPage from "./pages/Aliases";
 import SecurityPage from "./pages/Security";
+import DnsPage from "./pages/Dns";
 import Placeholder from "./pages/Placeholder";
 
 function RequireAuth({ children }: { children: JSX.Element }) {
@@ -23,10 +24,7 @@ export default function App() {
       <Route path="/users" element={<RequireAuth><UsersPage /></RequireAuth>} />
       <Route path="/aliases" element={<RequireAuth><AliasesPage /></RequireAuth>} />
       <Route path="/security" element={<RequireAuth><SecurityPage /></RequireAuth>} />
-      <Route
-        path="/dns"
-        element={<RequireAuth><Placeholder title="DNS" note="Custom DNS records, secondary nameservers, and the zone dump are coming to the new panel. Use the classic panel at /admin-old for now." /></RequireAuth>}
-      />
+      <Route path="/dns" element={<RequireAuth><DnsPage /></RequireAuth>} />
       <Route
         path="/tls"
         element={<RequireAuth><Placeholder title="TLS Certificates" note="Certificate status and provisioning are coming to the new panel. Use the classic panel at /admin-old for now." /></RequireAuth>}
