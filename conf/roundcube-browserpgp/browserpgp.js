@@ -92,13 +92,33 @@
     }
   }
 
-  // ---- Message view: decrypt the displayed armored message ----
+  // If the decrypted data is itself a MIME entity (PGP/MIME wraps the original
+  // content with headers), strip a leading header block so the body shows.
+  function stripMimeHeaders(text) {
+    if (/^(content-type|content-transfer-encoding|mime-version)\s*:/i.test(text)) {
+      var idx = text.search(/\r?\n\r?\n/);
+      if (idx !== -1) return text.slice(idx).replace(/^\s+/, "");
+    }
+    return text;
+  }
+
+  // ---- Message view: decrypt the message (fetch raw source so PGP/MIME, where
+  // the ciphertext is in the encrypted.asc part, works too) ----
   async function decryptView() {
     if (!haveOpenPGP()) return rcmail.display_message("OpenPGP.js failed to load.", "error");
-    var container = document.querySelector(".message-part pre, .message-htmlpart, #messagebody, .message-part");
-    var text = container ? container.innerText : "";
-    var m = text.match(/-----BEGIN PGP MESSAGE-----[\s\S]+?-----END PGP MESSAGE-----/);
-    if (!m) return rcmail.display_message("No PGP message found in this email.", "warning");
+    var uid = rcmail.env.uid, mbox = rcmail.env.mailbox || rcmail.env.mbox;
+    if (!uid) return rcmail.display_message("Open a message first.", "warning");
+
+    rcmail.display_message("Fetching message…", "loading");
+    var raw;
+    try {
+      var url = "?_task=mail&_action=viewsource&_uid=" + encodeURIComponent(uid) + "&_mbox=" + encodeURIComponent(mbox);
+      raw = await fetch(url, { credentials: "same-origin" }).then(function (r) { return r.text(); });
+    } catch (e) {
+      return rcmail.display_message("Could not fetch the message source: " + e.message, "error");
+    }
+    var m = raw.match(/-----BEGIN PGP MESSAGE-----[\s\S]+?-----END PGP MESSAGE-----/);
+    if (!m) return rcmail.display_message("No PGP-encrypted data found in this email.", "warning");
 
     var passphrase = prompt("Enter your PGP key passphrase to decrypt (it stays in this browser):");
     if (passphrase === null) return;
@@ -106,11 +126,11 @@
       var privateKey = await unlockPrivateKey(passphrase);
       var message = await openpgp.readMessage({ armoredMessage: m[0] });
       var decrypted = await openpgp.decrypt({ message: message, decryptionKeys: privateKey });
-      // Show the plaintext in a panel (not sent anywhere).
       var panel = document.createElement("pre");
       panel.className = "browserpgp-decrypted";
-      panel.textContent = decrypted.data;
-      if (container && container.parentNode) container.parentNode.insertBefore(panel, container);
+      panel.textContent = stripMimeHeaders(decrypted.data);
+      var anchor = document.querySelector(".message-part, #messagebody, .message-content") || document.body;
+      anchor.parentNode ? anchor.parentNode.insertBefore(panel, anchor) : anchor.appendChild(panel);
       rcmail.display_message("Decrypted in your browser.", "confirmation");
     } catch (e) {
       rcmail.display_message("Decryption failed (wrong passphrase or not encrypted to your key): " + e.message, "error");
