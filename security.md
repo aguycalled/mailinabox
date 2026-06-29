@@ -115,7 +115,9 @@ Incoming Mail
 
 ### Encryption Settings
 
-As with outbound email, there is no way to require on-the-wire encryption of incoming mail from all senders. When the box receives an incoming email (SMTP on port 25), it offers encryption (STARTTLS) but cannot require that senders use it because some senders may not support STARTTLS at all and other senders may support STARTTLS but not with the latest protocols/ciphers. To give senders the best chance at making use of encryption, the box offers protocols back to TLSv1 and ciphers with key lengths as low as 112 bits. Modern clients (senders) will make use of the 256-bit ciphers and Diffie-Hellman ciphers with a 2048-bit key for perfect forward secrecy, however. ([source](setup/mail-postfix.sh))
+As with outbound email, there is no way to require on-the-wire encryption of incoming mail from all senders. When the box receives an incoming email (SMTP on port 25), it offers encryption (STARTTLS) but by default cannot require that senders use it because some senders may not support STARTTLS at all and other senders may support STARTTLS but not with the latest protocols/ciphers. To give senders the best chance at making use of encryption, the box offers protocols back to TLSv1 and ciphers with key lengths as low as 112 bits. Modern clients (senders) will make use of the 256-bit ciphers and Diffie-Hellman ciphers with a 2048-bit key for perfect forward secrecy, however. ([source](setup/mail-postfix.sh))
+
+An operator who is willing to refuse mail that would otherwise arrive in cleartext can opt in to **mandatory inbound TLS** by creating the file `$STORAGE_ROOT/mail/require_inbound_tls` and re-running setup (or setting `smtpd_tls_security_level=encrypt`). Port 25 then requires STARTTLS and rejects any sender that won't encrypt with `530 Must issue a STARTTLS command first`. This closes the cleartext gap but **bounces legitimate mail from senders that don't support STARTTLS**, so it trades deliverability for confidentiality. ([source](setup/mail-postfix.sh))
 
 ### MTA-STS
 

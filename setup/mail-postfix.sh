@@ -135,8 +135,17 @@ sed -i "s/PUBLIC_IP/$PUBLIC_IP/" /etc/postfix/outgoing_mail_header_filters
 #   won't fall back to cleartext. So we don't disable too much. smtpd_tls_exclude_ciphers applies to
 #   both port 25 and port 587, but because we override the cipher list for both, it probably isn't used.
 #   Use Mozilla's "Old" recommendations at https://ssl-config.mozilla.org/#server=postfix&server-version=3.3.0&config=old&openssl-version=1.1.1
+# Inbound (port 25) TLS level. Opportunistic ("may") by default so we still
+# accept mail from senders that can't do STARTTLS. An operator who wants to
+# REFUSE all cleartext inbound mail can opt in per box by creating the file
+# $STORAGE_ROOT/mail/require_inbound_tls, which switches port 25 to "encrypt"
+# (Postfix then rejects any sender that won't STARTTLS -- including legitimate
+# cleartext senders, whose mail will bounce). See security.md.
+INBOUND_TLS_LEVEL=may
+if [ -f "$STORAGE_ROOT/mail/require_inbound_tls" ]; then INBOUND_TLS_LEVEL=encrypt; fi
+
 tools/editconf.py /etc/postfix/main.cf \
-	smtpd_tls_security_level=may\
+	smtpd_tls_security_level=$INBOUND_TLS_LEVEL\
 	smtpd_tls_auth_only=yes \
 	smtpd_tls_cert_file="$STORAGE_ROOT/ssl/ssl_certificate.pem" \
 	smtpd_tls_key_file="$STORAGE_ROOT/ssl/ssl_private_key.pem" \
