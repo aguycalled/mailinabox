@@ -32,10 +32,10 @@ Already strong in stock Mail-in-a-Box (no work needed)
 Candidates, roughly by value/effort
 -----------------------------------
 
-1. **Webmail anti-tracking defaults (Roundcube).** Force "block remote/external
-   images" so tracking pixels don't phone home until the user opts in per
-   message, and disable automatic read receipts (MDN). Small, low-risk config
-   change in `setup/webmail.sh`. *Effort: low. Risk: low.* Strongly recommended.
+1. ~~**Webmail anti-tracking defaults (Roundcube).**~~ DONE — remote images
+   blocked by default and read receipts (MDN) disabled (`mdn_requests=2`) in
+   `setup/webmail.sh`. Also: `Referrer-Policy: no-referrer` on the control panel,
+   and an opt-in to require inbound TLS (`$STORAGE_ROOT/mail/require_inbound_tls`).
 
 2. **Autocrypt headers on outbound mail.** Add the `Autocrypt:` header so two
    users who both have a PGP key get opportunistic end-to-end encryption

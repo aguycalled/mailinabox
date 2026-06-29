@@ -6,7 +6,10 @@ Unreleased
 
 * Added optional at-rest PGP encryption of incoming mail. Upload a per-account PGP public key in the control panel (Users → "encryption") and new mail to that account is encrypted to the key (PGP/MIME) at delivery, after spam filtering, before it is written to disk. Accounts without a key are unaffected. See the Security Guide for caveats (only the body is encrypted; webmail shows ciphertext).
 * Added passkey (WebAuthn) two-factor login for the control panel, alongside the existing authenticator-app (TOTP) option, with support for multiple second factors per account. Enabled by default (installs the `webauthn` package; bumps `cryptography` to a version verified against the certificate code).
-* Webmail now blocks remote images by default so tracking pixels don't load until you choose to show them for a message.
+* Webmail now blocks remote images by default (tracking pixels) and never sends read receipts (MDN), both of which leak reading activity to senders.
+* Added the DNS page to the React control panel (custom records + secondary nameservers).
+* Added an opt-in to require inbound TLS (reject cleartext mail on port 25) via a per-box flag; lowered the greylisting delay to 60s.
+* Set `Referrer-Policy: no-referrer` on the control panel.
 * Added a modern React control panel, served at `/admin`. It covers login (password, TOTP, and passkeys), system status, users (including PGP keys and per-user two-factor management), and aliases; other pages are being ported and link back to the classic panel. The classic control panel moved to `/admin-old`. The JSON API stays at `/admin/*`.
 * Added a fork installer (`setup.sh`) and README instructions for installing the fork and migrating from a stock Mail-in-a-Box.
 * Added PRIVACY-ROADMAP.md outlining further privacy enhancements under consideration.
