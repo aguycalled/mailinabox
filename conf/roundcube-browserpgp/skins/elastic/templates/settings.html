@@ -1,0 +1,55 @@
+<roundcube:object name="doctype" value="html5" />
+<html>
+<head>
+<title><roundcube:object name="pagetitle" /></title>
+<roundcube:object name="links" />
+</head>
+<roundcube:if condition="config:devel_mode" />
+<body class="iframe fullheight">
+<roundcube:else />
+<body class="iframe fullheight">
+<roundcube:endif />
+
+<roundcube:object name="message" id="message" class="statusbar" />
+
+<div class="formcontent" style="padding:1em; max-width:46em">
+  <h2>Browser PGP</h2>
+  <p>Your <b>private key stays in this browser only</b> (passphrase-encrypted in local storage) and never reaches the server. Encryption and decryption happen in your browser.</p>
+  <p id="bpgp-status" class="boxinformation"></p>
+
+  <fieldset><legend>Generate a new key</legend>
+    <div class="form-group"><label for="bpgp-name">Your name</label>
+      <input id="bpgp-name" class="form-control" type="text" placeholder="optional" /></div>
+    <div class="form-group"><label for="bpgp-pass">Passphrase (protects the key in this browser)</label>
+      <input id="bpgp-pass" class="form-control" type="password" autocomplete="new-password" /></div>
+    <button id="bpgp-generate" class="btn btn-primary">Generate key</button>
+  </fieldset>
+
+  <fieldset><legend>Import an existing key</legend>
+    <p style="font-size:90%">Paste an ASCII-armored PGP key. A private key is stored in this browser; a public key is stored as your public identity.</p>
+    <textarea id="bpgp-import" class="form-control" rows="6" placeholder="-----BEGIN PGP PRIVATE KEY BLOCK-----"></textarea>
+    <button id="bpgp-import-btn" class="btn btn-secondary" style="margin-top:.5em">Import</button>
+  </fieldset>
+
+  <fieldset><legend>Publish / export your public key</legend>
+    <p style="font-size:90%">Publishing stores only your <b>public</b> key on this box so others (and the at-rest encryption feature) can encrypt to you.</p>
+    <button id="bpgp-publish" class="btn btn-secondary">Publish public key to this box</button>
+    <button id="bpgp-export" class="btn btn-secondary">Show my public key</button>
+    <textarea id="bpgp-pubout" class="form-control" rows="6" readonly style="display:none; margin-top:.5em"></textarea>
+  </fieldset>
+
+  <fieldset><legend>Recipient public keys (key directory)</legend>
+    <p style="font-size:90%">Add a contact's public key so you can encrypt to them. Local accounts on this box are looked up automatically.</p>
+    <div class="form-group"><label for="bpgp-contact-email">Email</label>
+      <input id="bpgp-contact-email" class="form-control" type="email" /></div>
+    <textarea id="bpgp-contact-key" class="form-control" rows="5" placeholder="-----BEGIN PGP PUBLIC KEY BLOCK-----"></textarea>
+    <button id="bpgp-contact-add" class="btn btn-secondary" style="margin-top:.5em">Add contact key</button>
+  </fieldset>
+
+  <fieldset><legend>Danger zone</legend>
+    <button id="bpgp-forget" class="btn btn-danger">Remove keys from this browser</button>
+  </fieldset>
+</div>
+
+</body>
+</html>

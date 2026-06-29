@@ -154,25 +154,29 @@ cat > $RCM_CONFIG <<EOF;
    activity/timing to the sender and is a common tracking vector. 2 = ignore the
    request entirely (never send, never prompt). */
 \$config['mdn_requests'] = 2;
-/* PGP in webmail via the Enigma plugin. Users manage their own keys under
-   Settings -> PGP Keys (import or generate), and can sign/encrypt a message
-   before it is sent. Per-user GnuPG keyrings (the user's own keys plus the
-   recipient public keys they import -- the "key directory") live under
-   STORAGE_ROOT so they persist across upgrades. Note: a user's PRIVATE key,
-   if generated/imported here, is stored on the server. */
-\$config['enigma_pgp_homedir'] = '$STORAGE_ROOT/mail/enigma';
-/* Default the compose options so encryption is offered but not forced. */
-\$config['enigma_encryption'] = true;
-\$config['enigma_signatures'] = true;
-\$config['enigma_decryption'] = true;
+/* Browser PGP plugin: client-side OpenPGP where the PRIVATE key lives only in
+   the user's browser (localStorage) and never on the server. The server keeps
+   only a PUBLIC-key directory (reused from the at-rest PGP feature) so the
+   compose UI can encrypt to local recipients before sending. */
+\$config['browserpgp_keydir'] = '$STORAGE_ROOT/mail/pgp_keys';
 ?>
 EOF
 
-# Create the Enigma keyring directory (per-user GnuPG homedirs are created under
-# it on demand). It must be writable by the webserver/PHP user.
-mkdir -p "$STORAGE_ROOT/mail/enigma"
-chown -R www-data:www-data "$STORAGE_ROOT/mail/enigma"
-chmod 700 "$STORAGE_ROOT/mail/enigma"
+# ### Browser PGP plugin (client-side OpenPGP, no private key on the server)
+rm -rf ${RCM_PLUGIN_DIR}/browserpgp
+cp -r conf/roundcube-browserpgp ${RCM_PLUGIN_DIR}/browserpgp
+# Vendor OpenPGP.js (the crypto runs in the browser).
+mkdir -p ${RCM_PLUGIN_DIR}/browserpgp/vendor
+wget_verify \
+	https://unpkg.com/openpgp@5.11.2/dist/openpgp.min.js \
+	05181f0aea6dd42c5e6eddef9d116ed7eca62d71 \
+	${RCM_PLUGIN_DIR}/browserpgp/vendor/openpgp.min.js
+chown -f -R root:www-data ${RCM_PLUGIN_DIR}/browserpgp
+chmod -R 755 ${RCM_PLUGIN_DIR}/browserpgp
+# The public-key directory is shared with the at-rest feature; ensure it exists
+# and is writable by the webserver so users can publish their public key.
+mkdir -p "$STORAGE_ROOT/mail/pgp_keys"
+chown -R www-data:www-data "$STORAGE_ROOT/mail/pgp_keys"
 
 # Configure CardDav
 cat > ${RCM_PLUGIN_DIR}/carddav/config.inc.php <<EOF;

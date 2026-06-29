@@ -1,0 +1,13 @@
+.browserpgp-decrypted {
+  border: 1px solid #1f57db;
+  border-radius: 6px;
+  background: #f0f6ff;
+  padding: 0.75em;
+  margin: 0.5em 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.btn-pgp,
+.btn-pgp-decrypt {
+  margin-left: 0.5em;
+}
