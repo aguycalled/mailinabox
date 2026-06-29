@@ -122,7 +122,7 @@ def gpg_encrypt(keyfile, plaintext):
 def build_pgp_mime(headers, body, ciphertext):
 	# Assemble the outer PGP/MIME message: original non-content headers on the
 	# outside, the encrypted original content as the second body part.
-	boundary = "--==pgpmime-" + os.urandom(12).hex() + "==--"
+	boundary = "pgpmime-" + os.urandom(16).hex()
 	out = bytearray()
 
 	for name, value in headers:
