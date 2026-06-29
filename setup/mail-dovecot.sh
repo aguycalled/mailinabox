@@ -242,7 +242,10 @@ chmod 755 /usr/lib/dovecot/sieve-filter/pgp-encrypt
 # compile it (Dovecot can't compile global scripts itself at delivery time).
 mkdir -p "$STORAGE_ROOT/mail/sieve/global_before"
 cp conf/sieve-encrypt.txt "$STORAGE_ROOT/mail/sieve/global_before/encrypt-at-rest.sieve"
-sievec "$STORAGE_ROOT/mail/sieve/global_before/encrypt-at-rest.sieve"
+# Compile with the sieve_extprograms plugin loaded and the filter extension
+# enabled, otherwise sievec doesn't know the `vnd.dovecot.filter` capability the
+# script requires (the running Dovecot loads these via 99-local-sieve.conf).
+sievec -P sieve_extprograms -x "+vnd.dovecot.filter" "$STORAGE_ROOT/mail/sieve/global_before/encrypt-at-rest.sieve"
 
 # Create the per-account public key store, owned by the mail user.
 mkdir -p "$STORAGE_ROOT/mail/pgp_keys"
