@@ -150,6 +150,10 @@ cat > $RCM_CONFIG <<EOF;
    remote content don't phone home until the user explicitly chooses to show
    them for a given message. (0 = never; users can still load images per-message.) */
 \$config['show_images'] = 0;
+/* Privacy: never send read receipts (MDN). Confirming you read a message leaks
+   activity/timing to the sender and is a common tracking vector. 2 = ignore the
+   request entirely (never send, never prompt). */
+\$config['mdn_requests'] = 2;
 ?>
 EOF
 
